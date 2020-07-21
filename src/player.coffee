@@ -5,15 +5,16 @@ Namespace('Flashcards').DiscardPile = [] # Array of objects that holds discards.
 Namespace('Flashcards').Engine = do ->
 	nodes = {} # DOM Elements.
 
-	currentCardId = 0       # Specifies the main card that the user is interacting with.
-	numCards      = null    # Specifies the number of active cards.
-	numDiscard    = null    # Specifies the number of inactive cards.
-	animating     = false   # Gate to prevent events while transitioning.
-	buffer        = false   # Gate for duplicate event prevention.
-	overlay       = false   # Specifies whether the overlay is shown or not.
-	rotation      = ''      # Specifies the current default rotation for all cards.
-	timer         = null    # A setInterval timer for regular interval events.
-	atari         = false   # Triggered by KONAMI CODE
+	currentCardId = 0            # Specifies the main card that the user is interacting with.
+	numCards      = null         # Specifies the number of active cards.
+	numDiscard    = null         # Specifies the number of inactive cards.
+	animating     = false        # Gate to prevent events while transitioning.
+	buffer        = false        # Gate for duplicate event prevention.
+	overlay       = false        # Specifies whether the overlay is shown or not.
+	rotation      = ''           # Specifies the current default rotation for all cards.
+	timer         = null         # A setInterval timer for regular interval events.
+	atari         = false        # Triggered by KONAMI CODE
+	startAccessibility = false   # Specifies when to start running accessibility code
 
 	# Environmental conditions.
 	isMobile = navigator.userAgent.match /(iPhone|iPod|iPad|Android|BlackBerry)/
@@ -32,8 +33,19 @@ Namespace('Flashcards').Engine = do ->
 			$('.error-notice-container').show()
 			return
 
-		Hammer(document.getElementById('gotit')).on 'tap', ->
+
+		document.getElementById('gotit').addEventListener("click", (event)=>
 			$('.instructions').hide()
+			_accessibilityStart()
+		);
+
+		document.getElementById('gotit').addEventListener("keyup", (event)=>
+			if (event.isComposing || (event.keyCode != 13 && event.keycode != 32))
+				return;
+
+			$('.instructions').hide()
+			_accessibilityStart()
+		);
 
 		if instance.name is undefined or null
 			instance.name = "Widget Title Goes Here"
@@ -197,15 +209,33 @@ Namespace('Flashcards').Engine = do ->
 		if face is 'reverse'
 			rotation = '-rotated'
 			for i in [0...numCards]
-				if i is currentCardId     then Flashcards.Card[i].node.className = 'flashcard rotated'
-				else if i < currentCardId then Flashcards.Card[i].node.className = 'flashcard left-rotated'
-				else if i > currentCardId then Flashcards.Card[i].node.className = 'flashcard right-rotated'
+				if i is currentCardId
+					Flashcards.Card[i].node.className = 'flashcard rotated'
+					_ariaShowCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0],true)
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0])
+				else if i < currentCardId
+					Flashcards.Card[i].node.className = 'flashcard left-rotated'
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0])
+				else if i > currentCardId
+					Flashcards.Card[i].node.className = 'flashcard right-rotated'
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0])
 		else
 			rotation = ''
 			for i in [0...numCards]
-				if i is currentCardId     then Flashcards.Card[i].node.className = 'flashcard'
-				else if i < currentCardId then Flashcards.Card[i].node.className = 'flashcard left'
-				else if i > currentCardId then Flashcards.Card[i].node.className = 'flashcard right'
+				if i is currentCardId
+					Flashcards.Card[i].node.className = 'flashcard'
+					_ariaShowCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0],true)
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
+				else if i < currentCardId
+					Flashcards.Card[i].node.className = 'flashcard left'
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0])
+				else if i > currentCardId
+					Flashcards.Card[i].node.className = 'flashcard right'
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
+					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0])
 
 	_addEventListeners = () ->
 		# document.oncontextmenu = -> false                # Disables right click.
@@ -286,6 +316,27 @@ Namespace('Flashcards').Engine = do ->
 				_discard()
 				e.stopPropagation()
 
+			# Handles enter key working with buttons for accessibility
+			$('#icon-right').on 'keyup', (e) ->
+				if e.keyCode == 13
+					_rightSelected()
+					_killAudioVideo()
+
+			$('#icon-left').on 'keyup', (e) ->
+				if e.keyCode == 13
+					_leftSelected()
+					_killAudioVideo()
+
+			$('.remove-button').on 'keyup', (e) ->
+				if e.keyCode == 13
+					_killAudioVideo()
+					_discard()
+					e.stopPropagation()
+
+			$('.flashcard').on 'keyup', (e) ->
+				if e.keyCode == 13
+					_flipCard()
+
 		# Key events for keyboardz.
 		window.addEventListener 'keydown', (e) ->
 			switch e.keyCode
@@ -293,14 +344,14 @@ Namespace('Flashcards').Engine = do ->
 				when 38     then _unDiscard()                                # Up arrow key.
 				when 39     then _rightSelected()                            # Right arrow key.
 				when 40     then _discard()                                  # Down arrow key.
-				when 32, 70 then _flipCard()                                 # F key and space bar.
+				when 70     then _flipCard()                                 # F key.
 				when 72     then _toggleOverlay()                            # H key.
 				when 82     then _rotateCards(if rotation is '' then 'back') # R key.
 				when 83     then _shuffleCards()                             # S key.
 				when 85     then _unDiscardAll()                             # U key.
 
 			_killAudioVideo()
-			e.preventDefault()
+			#e.preventDefault()
 
 	_leftSelected = ()  -> if _canMove 'left'  then _shiftCards 'right'
 	_rightSelected = () -> if _canMove 'right' then _shiftCards 'left'
@@ -322,6 +373,7 @@ Namespace('Flashcards').Engine = do ->
 
 			# Move the current card in the specified direction.
 			Flashcards.Card[currentCardId].node.className = 'flashcard '+direction+rotation
+			oldCardId = currentCardId
 
 			# Increment or decrement the current card ID.
 			currentCardId = if direction is 'left' then currentCardId+1 else currentCardId-1
@@ -329,23 +381,73 @@ Namespace('Flashcards').Engine = do ->
 			# Animate the new current card to the center.
 			Flashcards.Card[currentCardId].node.className = "flashcard "+(if rotation is '' then '' else 'rotated')
 
+			# Sets the aria for the old and new cards
+			oldFront = Flashcards.Card[oldCardId].node.querySelectorAll('.front')[0]
+			oldBack = Flashcards.Card[oldCardId].node.querySelectorAll('.back')[0]
+			newFront = Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0]
+			newBack = Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0]
+
+			# Clearing the old card
+			_ariaHideCardFace(oldBack)
+			_ariaHideCardFace(oldFront)
+
+			# Setting the new card
+			# Hides the aria of the old card
+			if rotation is ''
+				_ariaShowCardFace(newFront)
+			else
+				_ariaShowCardFace(newBack)
+
 			_setArrowState()
 
 	# Shows or hides directional arrows depending on what cards are viewable.
-	_setArrowState = () ->
-			if _canMove 'right' then nodes.rightArrow.className = 'arrow shown' else nodes.rightArrow.className = 'arrow'
-			if _canMove 'left'  then nodes.leftArrow.className  = 'arrow shown' else nodes.leftArrow.className  = 'arrow'
+	_setArrowState = (focusArrow = true) ->
+			if _canMove 'right'
+				nodes.rightArrow.className = 'arrow shown'
+				if startAccessibility
+					$('#icon-right')[0].setAttribute('tabindex','0')
+					$('#icon-right')[0].setAttribute('aria-hidden','false')
+			else
+				nodes.rightArrow.className = 'arrow'
+				if startAccessibility
+					$('#icon-right')[0].setAttribute('tabindex','-1')
+					$('#icon-right')[0].setAttribute('aria-hidden','true')
+					if focusArrow
+						$('#icon-left')[0].focus()
+
+			if _canMove 'left'
+				nodes.leftArrow.className  = 'arrow shown'
+				if startAccessibility
+					$('#icon-left')[0].setAttribute('tabindex','0')
+					$('#icon-left')[0].setAttribute('aria-hidden','false')
+			else
+				nodes.leftArrow.className  = 'arrow'
+				if startAccessibility
+					$('#icon-left')[0].setAttribute('tabindex','-1')
+					$('#icon-left')[0].setAttribute('aria-hidden','true')
+					if focusArrow
+						$('#icon-right')[0].focus()
 
 	# Rotates the current card 180 degrees.
 	_flipCard = () ->
 		if numCards > 0
 			if atari then Flashcards.Atari.playFlip()
+
+			front = Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0]
+			back = Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0]
+
 			# The back is currently showing.
 			if Flashcards.Card[currentCardId].node.className is 'flashcard rotated'
 				Flashcards.Card[currentCardId].node.className = 'flashcard'
+
+				#Sets the Aria for the card swap
+				_ariaShowCardFace(front, true)
+				_ariaHideCardFace(back)
 			# The front is currently showing.
 			else
 				Flashcards.Card[currentCardId].node.className = 'flashcard rotated'
+				_ariaShowCardFace(back, true)
+				_ariaHideCardFace(front)
 
 	_killAudioVideo = () ->
 		$('audio').each ->
@@ -369,6 +471,12 @@ Namespace('Flashcards').Engine = do ->
 				, 1200
 
 				if atari then Flashcards.Atari.playIcon 'shuffle'
+
+				# Hides the aria of the old card
+				if rotation is ''
+						_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0])
+					else
+						_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0])
 
 				_posArr = [0, 1, 2, 3, 4]
 
@@ -431,6 +539,12 @@ Namespace('Flashcards').Engine = do ->
 				_rotation        = if rotation is '' then '' else '-rotated'
 				_reverseRotation = if rotation is '' then '-rotated' else ''
 
+				# Hides the aria of the old card
+				if rotation is ''
+						_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0])
+					else
+						_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0])
+
 				# Access 5 flashcards: two from the left, the current card, and two from the right.
 				# Then stage them.
 				for i in [-2..2]
@@ -474,6 +588,14 @@ Namespace('Flashcards').Engine = do ->
 
 				if atari then Flashcards.Atari.playDiscard()
 
+				# Hides the aria for the discarded card
+				if rotation is ''
+						_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0])
+					else
+						_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0])
+
+				$('#icon-restore')[0].setAttribute('aria-disabled','false')
+
 				# Store a record of the latest discard.
 				_moveCardObject(Flashcards.Card, Flashcards.DiscardPile, currentCardId)
 
@@ -498,7 +620,13 @@ Namespace('Flashcards').Engine = do ->
 						currentCardId--
 						Flashcards.Card[currentCardId].node.className = "flashcard "+(if rotation is '' then '' else 'rotated')
 
-				_setArrowState()
+					# Shows the aria for the new card face and focuses on it's text
+					if rotation is ''
+						_ariaShowCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0], true)
+					else
+						_ariaShowCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0], true)
+
+				_setArrowState(false)
 
 	# Takes a card from the first array and places it in the second.
 	# @arr1  : The array we remove a card from.
@@ -519,12 +647,14 @@ Namespace('Flashcards').Engine = do ->
 				buffer = false
 			, 100
 
+
 			# Don't let this event happen if no cards or all cards are discarded.
 			if numDiscard > 0 && numCards != 0
 				numDiscard--
 				numCards++
 
 				if numDiscard is 0 then nodes.icons[1].className = "icon unselectable"
+				$('#icon-restore')[0].setAttribute('aria-disabled','true')
 
 				# Move last discarded from discard to active pile.
 				_moveCardObject(Flashcards.DiscardPile, Flashcards.Card, Flashcards.DiscardPile.length-1)
@@ -537,8 +667,16 @@ Namespace('Flashcards').Engine = do ->
 				setTimeout ->
 					Flashcards.Card[Flashcards.Card.length-1].node.className = 'flashcard ' + rotation
 					_dif = Flashcards.Card.length-2-currentCardId
+
+					# Hides the aria of the old card
+					if _dif > 0
+						if rotation is ''
+							_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.front')[0])
+						else
+							_ariaHideCardFace(Flashcards.Card[currentCardId].node.querySelectorAll('.back')[0])
+
 					_shiftCards 'left' for i in [0.._dif]
-					_setArrowState()
+					_setArrowState(false)
 				, 20
 
 	_restoreTriggered = () ->
@@ -559,6 +697,9 @@ Namespace('Flashcards').Engine = do ->
 			if numDiscard > 0
 
 				_restoreTriggered()
+
+				# Sets the aria
+				$('#icon-restore')[0].setAttribute('aria-disabled','true')
 
 				# Move all cards from the discard pile into the active pile.
 				for i in [0...Flashcards.DiscardPile.length]
@@ -640,6 +781,52 @@ Namespace('Flashcards').Engine = do ->
 	_showIcons = () ->
 		for i in [1...nodes.icons.length]
 			nodes.icons[i].className = 'icon'
+
+	_ariaShowCardFace = (cardF, focusThis = false) ->
+		cardF.setAttribute('aria-hidden', 'false')
+		cardF.querySelectorAll('.content')[0].setAttribute('tabindex', '0')
+		cardF.querySelectorAll('.content')[0].setAttribute('aria-hidden', 'false')
+		cardF.querySelectorAll('.remove-button')[0].setAttribute('tabindex', '0')
+		cardF.querySelectorAll('.remove-button')[0].setAttribute('aria-hidden', 'false')
+
+		if focusThis
+			cardF.querySelectorAll('.content')[0].focus()
+
+	_ariaHideCardFace = (cardF) ->
+		cardF.setAttribute('aria-hidden', 'true')
+		cardF.querySelectorAll('.content')[0].setAttribute('tabindex', '-1')
+		cardF.querySelectorAll('.content')[0].setAttribute('aria-hidden', 'true')
+		cardF.querySelectorAll('.remove-button')[0].setAttribute('tabindex', '-1')
+		cardF.querySelectorAll('.remove-button')[0].setAttribute('aria-hidden', 'true')
+
+	_accessibilityStart = () ->
+		startAccessibility = true
+		$('#game')[0].setAttribute('aria-hidden', 'false')
+
+		# Handles changing the aria for the cards
+		for i in [0...$('.front').length]
+			content = $('.front')[i].querySelectorAll('.content')[0]
+			removeBtn = $('.front')[i].querySelectorAll('.remove-button')[0]
+			p = content.children[0]
+			content.setAttribute('aria-label', p.innerHTML)
+
+			if (i == 0)
+				$('.front')[0].setAttribute('aria-hidden', 'false')
+				#content.setAttribute('aria-hidden', 'false')
+				content.setAttribute('tabindex','0')
+				removeBtn.setAttribute('tabindex','0')
+				removeBtn.setAttribute('aria-hidden', 'false')
+				$('#instance-title')[0].focus()
+			else
+				content.setAttribute('aria-hidden', 'true')
+				content.setAttribute('tabindex','-1')
+
+		# Handles changing the icons
+		$('#icon-restore')[0].setAttribute('tabindex','0')
+		$('#icon-restore')[0].setAttribute('aria-disabled','true')
+		$('#icon-rotate')[0].setAttribute('tabindex','0')
+		$('#icon-shuffle')[0].setAttribute('tabindex','0')
+		$('#icon-right')[0].setAttribute('tabindex','0')
 
 	# Public.
 	start : start

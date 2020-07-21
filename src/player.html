@@ -32,7 +32,7 @@
 			<p class="load">Loading User Data from file:- SHELLCFG/DAT   <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></p>
 		</section>
 
-		<section id="game">
+		<section aria-hidden="true" id="game">
 			<section id="atari-bg" aria-hidden="true"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></section>
 
 			<section id="overlay" class="overlay" aria-hidden="true">
@@ -89,11 +89,11 @@
 
 			<section id="board">
 
-				<div id="instance-title"></div>
+				<div tabindex="-1" id="instance-title"></div>
 
 				<!-- arrows -->
-				<div id="icon-left" class="arrow"></div>
-				<div id="icon-right" class="arrow shown"></div>
+				<div aria-label="Previous Card" aria-hidden="true" role="button" tabindex="-1" id="icon-left" class="arrow"></div>
+				<div aria-label="Next Card" role="button" tabindex="-1" id="icon-right" class="arrow shown"></div>
 
 				<!-- Holds flashcards -->
 				<div id="container"></div>
@@ -107,9 +107,21 @@
 					<div id="icon-finish" class="icon"></div>
 				</div>
 
-				<div aria-label="Restore cards." id="icon-restore" class="icon unselectable"></div>
-				<div aria-label="Rotate cards." id="icon-rotate" class="icon"></div>
-				<div aria-label="Shuffle cards." id="icon-shuffle" class="icon"></div>
+				<div role="button"
+				tabindex="-1"
+				aria-label="Restore cards."
+				id="icon-restore"
+				class="icon unselectable"></div>
+				<div role="button"
+				tabindex="-1"
+				aria-label="Rotate cards."
+				id="icon-rotate"
+				class="icon"></div>
+				<div role="button"
+				tabindex="-1"
+				aria-label="Shuffle cards."
+				id="icon-shuffle"
+				class="icon"></div>
 
 			</section>
 
@@ -118,17 +130,21 @@
 
 		<div id="instructions" class="instructions">
 			<div class="dialog">
-				<h2>Studying with Flash Cards</h2>
-				<p>This is a virtual deck of two-sided cards that you can use to help you study.</p>
+				<h2 tabindex="-1">Studying with Flash Cards</h2>
+				<p tabindex="-1">This is a virtual deck of two-sided cards that you can use to help you study.</p>
 				<figure>
-					<img src="assets/intro.svg">
+					<img aria-hidden="true" src="assets/intro.svg">
 					<ul>
-						<li>Click cards to flip them - See if you guessed the correct answer.</li>
-						<li>Discard a card when you feel confident that you know it.</li>
-						<li>Shuffle the deck or flip all the cards and try to guess the other side.</li>
+						<li tabindex="-1">Click cards to flip them - See if you guessed the correct answer.</li>
+						<li tabindex="-1">Discard a card when you feel confident that you know it.</li>
+						<li tabindex="-1">Shuffle the deck or flip all the cards and try to guess the other side.</li>
 					</ul>
 				</figure>
-				<div id="gotit" class="gotit">Got it!</div>
+				<div tabindex="0"
+				role="button"
+				id="gotit"
+				class="gotit"
+				>Got it!</div>
 			</div>
 		</div>
 
@@ -142,16 +158,16 @@
 	</body>
 
 <!-- Flashcard Template -->
-<script type="text/template" id="t-flashcard"><div aria-label="flashcard" class="flashcard">
-	<div aria-label="back" class="back">
+<script type="text/template" id="t-flashcard"><div class="flashcard">
+	<div aria-hidden="true" class="back">
 		<div class="content"></div>
-		<div class="asset"></div>
-		<div aria-label="discard" class="remove-button">&#215;</div>
+		<div aria-hidden="true" class="asset"></div>
+		<div aria-hidden="true" aria-label="discard" tabindex="-1" role="button" class="remove-button">&#215;</div>
 	</div>
-	<div aria-label="front" class="front">
+	<div aria-hidden="true" class="front">
 		<div class="content"></div>
-		<div class="asset"></div>
-		<div aria-label="discard" class="remove-button">&#215;</div>
+		<div aria-hidden="true" class="asset"></div>
+		<div aria-hidden="true" aria-label="discard" tabindex="-1" role="button" class="remove-button">&#215;</div>
 	</div>
 </div></script>
 
