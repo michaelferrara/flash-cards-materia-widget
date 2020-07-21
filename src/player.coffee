@@ -205,14 +205,15 @@ Namespace('Flashcards').Engine = do ->
 
 	# Places cards in their correct positions within the gameboard and gives them a specific rotation.
 	# @face : Specifies whether or not to rotate the card when placing them in their positions.
-	_setCardPositions = (face = null) ->
+	_setCardPositions = (face = null, shouldFocus = false) ->
 		if face is 'reverse'
 			rotation = '-rotated'
 			for i in [0...numCards]
 				if i is currentCardId
 					Flashcards.Card[i].node.className = 'flashcard rotated'
-					_ariaShowCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0],true)
+					_ariaShowCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0],shouldFocus)
 					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0])
+					console.log("What")
 				else if i < currentCardId
 					Flashcards.Card[i].node.className = 'flashcard left-rotated'
 					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
@@ -226,8 +227,9 @@ Namespace('Flashcards').Engine = do ->
 			for i in [0...numCards]
 				if i is currentCardId
 					Flashcards.Card[i].node.className = 'flashcard'
-					_ariaShowCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0],true)
+					_ariaShowCardFace(Flashcards.Card[i].node.querySelectorAll('.front')[0],shouldFocus)
 					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
+					console.log(Flashcards.Card[i].node)
 				else if i < currentCardId
 					Flashcards.Card[i].node.className = 'flashcard left'
 					_ariaHideCardFace(Flashcards.Card[i].node.querySelectorAll('.back')[0])
@@ -441,13 +443,15 @@ Namespace('Flashcards').Engine = do ->
 				Flashcards.Card[currentCardId].node.className = 'flashcard'
 
 				#Sets the Aria for the card swap
-				_ariaShowCardFace(front, true)
 				_ariaHideCardFace(back)
+				_ariaShowCardFace(front, true)
+				
 			# The front is currently showing.
 			else
 				Flashcards.Card[currentCardId].node.className = 'flashcard rotated'
-				_ariaShowCardFace(back, true)
 				_ariaHideCardFace(front)
+				_ariaShowCardFace(back, true)
+				
 
 	_killAudioVideo = () ->
 		$('audio').each ->
@@ -502,7 +506,7 @@ Namespace('Flashcards').Engine = do ->
 				# Shuffle and reset the card data, then conclude the animation.
 				setTimeout ->
 					Flashcards.Card = _shuffle(Flashcards.Card)
-					_setCardPositions(if rotation is '' then null else 'reverse')
+					_setCardPositions((if rotation is '' then null else 'reverse'), true)
 					nodes.icons[3].className = 'icon'
 				, 1500
 
@@ -566,7 +570,7 @@ Namespace('Flashcards').Engine = do ->
 					animating = false
 					clearInterval(timer)
 
-					_setCardPositions(if face is 'back' then 'reverse' else '')
+					_setCardPositions((if face is 'back' then 'reverse' else ''), true)
 
 					nodes.icons[2].className = 'icon'
 				, 1400
@@ -726,7 +730,7 @@ Namespace('Flashcards').Engine = do ->
 
 					# Return cards to default positions.
 					setTimeout ->
-						_setCardPositions(if rotation is '' then null else 'reverse')
+						_setCardPositions((if rotation is '' then null else 'reverse'), true)
 						_setArrowState()
 					, 800
 
@@ -791,6 +795,7 @@ Namespace('Flashcards').Engine = do ->
 
 		if focusThis
 			cardF.querySelectorAll('.content')[0].focus()
+			
 
 	_ariaHideCardFace = (cardF) ->
 		cardF.setAttribute('aria-hidden', 'true')
@@ -806,9 +811,14 @@ Namespace('Flashcards').Engine = do ->
 		# Handles changing the aria for the cards
 		for i in [0...$('.front').length]
 			content = $('.front')[i].querySelectorAll('.content')[0]
+			contentBack = $('.back')[i].querySelectorAll('.content')[0]
 			removeBtn = $('.front')[i].querySelectorAll('.remove-button')[0]
 			p = content.children[0]
+			pBack = contentBack.children[0]
 			content.setAttribute('aria-label', p.innerHTML)
+			contentBack.setAttribute('aria-label', pBack.innerHTML)
+			p.setAttribute('aria-hidden', 'true')
+			pBack.setAttribute('aria-hidden', 'true')
 
 			if (i == 0)
 				$('.front')[0].setAttribute('aria-hidden', 'false')
